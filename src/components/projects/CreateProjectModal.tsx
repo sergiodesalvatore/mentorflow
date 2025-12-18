@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { X, Users, Calendar } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Users, Calendar, Loader2 } from 'lucide-react';
 import { useProjects } from '../../context/ProjectContext';
 import { useAuth } from '../../context/AuthContext';
-import type { ChecklistItem } from '../../types';
+import { supabase } from '../../lib/supabase';
+import type { ChecklistItem, User } from '../../types';
 
 interface CreateProjectModalProps {
     isOpen: boolean;
@@ -16,9 +17,39 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [deadline, setDeadline] = useState('');
-    const [assignedToId, setAssignedToId] = useState('2'); // Default to John Doe
+    const [assignedToId, setAssignedToId] = useState('');
     const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
     const [newItemText, setNewItemText] = useState('');
+
+    const [mentees, setMentees] = useState<User[]>([]);
+    const [loadingMentees, setLoadingMentees] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            const fetchMentees = async () => {
+                setLoadingMentees(true);
+                const { data } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('role', 'intern');
+
+                if (data) {
+                    const mapped: User[] = data.map(p => ({
+                        id: p.id,
+                        name: p.name,
+                        email: p.email,
+                        role: 'intern',
+                        avatar: p.avatar,
+                        courseYear: p.course_year
+                    }));
+                    setMentees(mapped);
+                }
+                setLoadingMentees(false);
+            };
+            fetchMentees();
+        }
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -36,25 +67,37 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
         setChecklistItems(checklistItems.filter(item => item.id !== id));
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!user) return;
+        if (!user || !assignedToId) {
+            alert("Seleziona un Mentee a cui assegnare il progetto.");
+            return;
+        }
 
-        addProject({
-            title,
-            description,
-            assignedToId,
-            createdById: user.id,
-            status: 'todo',
-            deadline: new Date(deadline).toISOString(),
-        });
+        setSubmitting(true);
+        try {
+            await addProject({
+                title,
+                description,
+                assignedToId,
+                createdById: user.id,
+                status: 'todo',
+                deadline: new Date(deadline).toISOString(),
+            });
 
-        // Reset form
-        setTitle('');
-        setDescription('');
-        setDeadline('');
-        setChecklistItems([]);
-        onClose();
+            // Reset form
+            setTitle('');
+            setDescription('');
+            setDeadline('');
+            setAssignedToId('');
+            setChecklistItems([]);
+            onClose();
+        } catch (error) {
+            console.error(error);
+            alert("Errore nella creazione del progetto. Riprova.");
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     return (
@@ -101,10 +144,18 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
                                     value={assignedToId}
                                     onChange={(e) => setAssignedToId(e.target.value)}
                                     className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none appearance-none bg-white"
+                                    required
                                 >
                                     <option value="">Seleziona Mentee</option>
-                                    <option value="2">John Doe</option>
-                                    <option value="3">Alice Cooper</option>
+                                    {loadingMentees ? (
+                                        <option disabled>Caricamento...</option>
+                                    ) : (
+                                        mentees.map(mentee => (
+                                            <option key={mentee.id} value={mentee.id}>
+                                                {mentee.name}
+                                            </option>
+                                        ))
+                                    )}
                                 </select>
                             </div>
                         </div>
@@ -173,8 +224,10 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
                         </button>
                         <button
                             type="submit"
-                            className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all"
+                            disabled={submitting}
+                            className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all flex items-center gap-2 disabled:opacity-70"
                         >
+                            {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                             Crea Progetto
                         </button>
                     </div>
