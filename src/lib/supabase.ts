@@ -1,15 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Hardcoded credentials to simple deployment for user
+// NOTE: Ideally these should be in .env, but hardcoding here to unblock deployment issues with Vercel UI
+const supabaseUrl = 'https://oreumuycaizvlxoudhrg.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9yZXVtdXljYWl6dmx4b3VkaHJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYwMTAxMTUsImV4cCI6MjA4MTU4NjExNX0.SdMUYou9PIOFMgtVTuE-HhvT3GcrUtaxtVLC79-M_9cR';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn('Missing Supabase credentials. Please check your .env file.');
-}
-
-// Create the client only if we have a URL, otherwise create a mock/safe client
-// that will fail on calls but not crash the app initialization
-export const supabase = (supabaseUrl && supabaseAnonKey)
-    ? createClient(supabaseUrl, supabaseAnonKey)
-    : createClient('https://placeholder.supabase.co', 'placeholder'); // Prevents crash, but calls will fail
-
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
