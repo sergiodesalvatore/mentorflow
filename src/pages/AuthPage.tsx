@@ -45,9 +45,12 @@ export const AuthPage: React.FC = () => {
         setError(null);
     }, [isLogin, role]);
 
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
+        setSuccessMessage(null);
         setIsLoading(true);
 
         try {
@@ -68,11 +71,8 @@ export const AuthPage: React.FC = () => {
                 if (error) {
                     setError(error.message || 'Errore durante la registrazione.');
                 } else {
-                    // Assuming auto-login or message to check email
-                    if (!error) {
-                        // Some logic to handle verify email (supabase default) vs auto login
-                        // For now assume auto login or just wait for auth state change
-                    }
+                    setSuccessMessage('Registrazione avvenuta con successo! Controlla la tua email per confermare il tuo account prima di accedere.');
+                    setIsLogin(true); // Switch to login view
                 }
             }
         } catch (err: any) {
@@ -156,6 +156,17 @@ export const AuthPage: React.FC = () => {
                                 >
                                     <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
                                     {error}
+                                </motion.div>
+                            )}
+
+                            {successMessage && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="bg-green-50 text-green-600 p-3 rounded-lg text-sm font-medium border border-green-100 flex items-center gap-2"
+                                >
+                                    <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                                    {successMessage}
                                 </motion.div>
                             )}
 
