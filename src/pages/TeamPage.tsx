@@ -73,12 +73,12 @@ export const TeamPage: React.FC = () => {
         };
     }, []);
 
-    const handleAddMember = async (data: { name: string; email: string; role: 'intern' | 'supervisor'; courseYear?: string }) => {
+    const handleAddMember = async (data: { name: string; email: string; role: 'intern' | 'supervisor'; courseYear?: string; password?: string }) => {
         // Use the isolated client to sign up the new user
         // This triggers the handle_new_user trigger in Postgres to create the profile
         const { error } = await inviteClient.auth.signUp({
             email: data.email,
-            password: 'TemporaryPassword123!', // Placeholder password
+            password: data.password || 'TemporaryPassword123!', // Use provided password or fallback (though UI requires it now)
             options: {
                 data: {
                     name: data.name,

@@ -1,20 +1,22 @@
 import React, { useState } from 'react';
-import { X, Loader2 } from 'lucide-react';
+import { X, Loader2, Eye, EyeOff } from 'lucide-react';
 
 interface AddInternModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onAdd: (data: { name: string; email: string; role: 'intern' | 'supervisor'; courseYear?: string }) => Promise<void>;
+    onAdd: (data: { name: string; email: string; role: 'intern' | 'supervisor'; courseYear?: string; password?: string }) => Promise<void>;
 }
 
 export const AddInternModal: React.FC<AddInternModalProps> = ({ isOpen, onClose, onAdd }) => {
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
     const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',
         email: '',
+        password: '',
         role: 'intern' as 'intern' | 'supervisor',
-        courseYear: ''
+        courseYear: '1° Anno' // Default
     });
 
     if (!isOpen) return null;
@@ -27,11 +29,12 @@ export const AddInternModal: React.FC<AddInternModalProps> = ({ isOpen, onClose,
                 name: `${formData.firstName} ${formData.lastName}`,
                 email: formData.email,
                 role: formData.role,
-                courseYear: formData.courseYear
+                courseYear: formData.courseYear,
+                password: formData.password
             });
             onClose();
-            // Show credentials to the Mentor
-            alert(`Utente creato con successo!\n\nEmail: ${formData.email}\nPassword Provvisoria: TemporaryPassword123!\n\nComunicare queste credenziali all'utente. Potrà cambiare la password dopo il primo accesso.`);
+            // Show credentials confirmation
+            alert(`Utente creato con successo!\n\nEmail: ${formData.email}\nPassword: ${formData.password}\n\nComunicare queste credenziali all'utente.`);
         } catch (error) {
             console.error(error);
             alert('Errore durante l\'aggiunta dell\'utente. Potresti aver superato il limite di email o l\'utente esiste già.');
@@ -86,28 +89,54 @@ export const AddInternModal: React.FC<AddInternModalProps> = ({ isOpen, onClose,
                     </div>
 
                     <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+                        <div className="relative">
+                            <input
+                                required
+                                minLength={6}
+                                type={showPassword ? "text" : "password"}
+                                className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all pr-10"
+                                value={formData.password}
+                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                placeholder="Min. 6 caratteri"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                            >
+                                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1">Ruolo</label>
                         <select
                             className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all bg-white"
                             value={formData.role}
                             onChange={(e) => setFormData({ ...formData, role: e.target.value as 'intern' | 'supervisor' })}
                         >
-                            <option value="intern">Mentee (Studente)</option>
+                            <option value="intern">Mentee (Studente/Specializzando)</option>
                             <option value="supervisor">Mentor (Supervisore)</option>
                         </select>
                     </div>
 
                     {formData.role === 'intern' && (
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Anno di Corso</label>
-                            <input
-                                required
-                                placeholder="es. 3° Anno"
-                                type="text"
-                                className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Stato / Anno</label>
+                            <select
+                                className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all bg-white"
                                 value={formData.courseYear}
                                 onChange={(e) => setFormData({ ...formData, courseYear: e.target.value })}
-                            />
+                            >
+                                <option value="1° Anno">1° Anno Specializzazione</option>
+                                <option value="2° Anno">2° Anno Specializzazione</option>
+                                <option value="3° Anno">3° Anno Specializzazione</option>
+                                <option value="4° Anno">4° Anno Specializzazione</option>
+                                <option value="5° Anno">5° Anno Specializzazione</option>
+                                <option value="Specialista">Già Specialista</option>
+                            </select>
                         </div>
                     )}
 
@@ -125,7 +154,7 @@ export const AddInternModal: React.FC<AddInternModalProps> = ({ isOpen, onClose,
                             className="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/30 flex items-center gap-2 disabled:opacity-70"
                         >
                             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                            Invia Invito
+                            Crea Utente
                         </button>
                     </div>
                 </form>
