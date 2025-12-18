@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { useProjects } from '../context/ProjectContext';
+import { useAuth } from '../context/AuthContext';
 import { ProjectCard } from '../components/projects/ProjectCard';
 import { ProjectFilters } from '../components/projects/ProjectFilters';
 import { CreateProjectModal } from '../components/projects/CreateProjectModal';
 import { ProjectModal } from '../components/projects/ProjectModal';
 import type { ProjectStatus } from '../types';
 import { Plus } from 'lucide-react';
-
 import { useSearchParams } from 'react-router-dom';
 
 export const ProjectsPage: React.FC = () => {
-    const { projects } = useProjects();
+    const { projects, deleteProject } = useProjects();
+    const { user } = useAuth();
     const [searchParams] = useSearchParams();
     const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
     const [filterStatus, setFilterStatus] = useState<ProjectStatus | 'all'>('all');
@@ -33,6 +34,13 @@ export const ProjectsPage: React.FC = () => {
     });
 
     const selectedProject = projects.find(p => p.id === selectedProjectId) || null;
+
+    const handleDelete = async (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
+        if (window.confirm('Sei sicuro di voler eliminare questo progetto?')) {
+            await deleteProject(id);
+        }
+    };
 
     return (
         <div className="space-y-8">
@@ -63,6 +71,8 @@ export const ProjectsPage: React.FC = () => {
                         key={project.id}
                         project={project}
                         onClick={() => setSelectedProjectId(project.id)}
+                        onDelete={(e) => handleDelete(e, project.id)}
+                        currentUserRole={user?.role}
                     />
                 ))}
                 {filteredProjects.length === 0 && (

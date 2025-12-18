@@ -1,12 +1,16 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
+import { useAuth } from './AuthContext';
 import type { Project, ProjectStatus, ChecklistItem, Comment } from '../types';
 
 interface ProjectContextType {
     projects: Project[];
-    addProject: (project: Omit<Project, 'id' | 'comments'>) => void;
-    updateProjectStatus: (id: string, status: ProjectStatus) => void;
-    updateChecklist: (projectId: string, checklist: ChecklistItem[]) => void;
-    addComment: (projectId: string, comment: Omit<Comment, 'id' | 'timestamp'>) => void;
+    loading: boolean;
+    addProject: (project: Omit<Project, 'id' | 'comments' | 'checklist'>) => Promise<void>;
+    updateProjectStatus: (id: string, status: ProjectStatus) => Promise<void>;
+    updateChecklist: (projectId: string, checklist: ChecklistItem[]) => Promise<void>;
+    addComment: (projectId: string, comment: Omit<Comment, 'id' | 'timestamp'>) => Promise<void>;
+    deleteProject: (id: string) => Promise<void>;
     getProject: (id: string) => Project | undefined;
 }
 
@@ -20,112 +24,142 @@ export const useProjects = () => {
     return context;
 };
 
-// Mock Data
-const MOCK_PROJECTS: Project[] = [
-    {
-        id: '1',
-        title: 'Cardiology Case Study: Arrhythmia',
-        description: 'Analyze the patient data from Case #402 and propose a treatment plan.',
-        assignedToId: '2', // John Doe
-        createdById: '1', // Dr. Sarah Smith
-        status: 'in-progress',
-        deadline: new Date(Date.now() + 86400000 * 2).toISOString(), // 2 days from now
-        checklist: [
-            { id: 'c1', text: 'Review patient history', completed: true },
-            { id: 'c2', text: 'Analyze ECG data', completed: false },
-            { id: 'c3', text: 'Draft treatment plan', completed: false },
-        ],
-        comments: [
-            { id: 'cm1', userId: '1', text: 'Please pay attention to the QRS complex.', timestamp: new Date(Date.now() - 86400000).toISOString() }
-        ]
-    },
-    {
-        id: '2',
-        title: 'Neurology Research Paper',
-        description: 'Literature review on recent advancements in Alzheimer treatment.',
-        assignedToId: '2',
-        createdById: '1',
-        status: 'todo',
-        deadline: new Date(Date.now() + 86400000 * 5).toISOString(),
-        checklist: [
-            { id: 'c1', text: 'Select 10 key papers', completed: false },
-            { id: 'c2', text: 'Write abstract', completed: false },
-        ],
-        comments: []
-    },
-    {
-        id: '3',
-        title: 'Emergency Room Rotation Log',
-        description: 'Complete the logbook for the 2-week ER rotation.',
-        assignedToId: '2',
-        createdById: '1',
-        status: 'review',
-        deadline: new Date(Date.now() - 86400000).toISOString(), // Overdue
-        checklist: [
-            { id: 'c1', text: 'Week 1 Log', completed: true },
-            { id: 'c2', text: 'Week 2 Log', completed: true },
-            { id: 'c3', text: 'Supervisor Signature', completed: false },
-        ],
-        comments: []
-    }
-];
-
 export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [projects, setProjects] = useState<Project[]>([]);
+    const [loading, setLoading] = useState(true);
+    const { user } = useAuth();
 
-    useEffect(() => {
-        const stored = localStorage.getItem('mentorflow_projects');
-        if (stored) {
-            setProjects(JSON.parse(stored));
-        } else {
-            setProjects(MOCK_PROJECTS);
-            localStorage.setItem('mentorflow_projects', JSON.stringify(MOCK_PROJECTS));
+    const fetchProjects = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('projects')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            if (data) {
+                const mappedProjects: Project[] = data.map(p => ({
+                    id: p.id,
+                    title: p.title,
+                    description: p.description,
+                    assignedToId: p.assigned_to_id,
+                    createdById: p.created_by_id,
+                    status: p.status as ProjectStatus,
+                    deadline: p.deadline,
+                    checklist: p.checklist || [],
+                    comments: p.comments || []
+                }));
+                setProjects(mappedProjects);
+            }
+        } catch (error) {
+            console.error('Error fetching projects:', error);
+        } finally {
+            setLoading(false);
         }
+    };
+
+    // Initial fetch
+    useEffect(() => {
+        fetchProjects();
+
+        // Realtime subscription
+        const channel = supabase
+            .channel('public:projects')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => {
+                fetchProjects();
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, []);
 
-    const saveProjects = (newProjects: Project[]) => {
-        setProjects(newProjects);
-        localStorage.setItem('mentorflow_projects', JSON.stringify(newProjects));
-    };
+    const addProject = async (projectData: Omit<Project, 'id' | 'comments' | 'checklist'>) => {
+        if (!user) return;
 
-    const addProject = (projectData: Omit<Project, 'id' | 'comments'>) => {
-        const newProject: Project = {
-            ...projectData,
-            id: Math.random().toString(36).substr(2, 9),
+        const { error } = await supabase.from('projects').insert({
+            title: projectData.title,
+            description: projectData.description,
+            assigned_to_id: projectData.assignedToId,
+            created_by_id: user.id, // Current user is the creator
+            status: projectData.status,
+            deadline: projectData.deadline,
+            checklist: [],
             comments: []
-        };
-        saveProjects([...projects, newProject]);
+        });
+
+        if (error) {
+            console.error('Error adding project:', error);
+            throw error;
+        }
     };
 
-    const updateProjectStatus = (id: string, status: ProjectStatus) => {
-        const updated = projects.map(p => p.id === id ? { ...p, status } : p);
-        saveProjects(updated);
+    const updateProjectStatus = async (id: string, status: ProjectStatus) => {
+        const { error } = await supabase
+            .from('projects')
+            .update({ status })
+            .eq('id', id);
+
+        if (error) console.error('Error updating status:', error);
     };
 
-    const updateChecklist = (projectId: string, checklist: ChecklistItem[]) => {
-        const updated = projects.map(p => p.id === projectId ? { ...p, checklist } : p);
-        saveProjects(updated);
+    const updateChecklist = async (projectId: string, checklist: ChecklistItem[]) => {
+        const { error } = await supabase
+            .from('projects')
+            .update({ checklist })
+            .eq('id', projectId);
+
+        if (error) console.error('Error updating checklist:', error);
     };
 
-    const addComment = (projectId: string, commentData: Omit<Comment, 'id' | 'timestamp'>) => {
+    const addComment = async (projectId: string, commentData: Omit<Comment, 'id' | 'timestamp'>) => {
+        const project = projects.find(p => p.id === projectId);
+        if (!project) return;
+
         const newComment: Comment = {
-            ...commentData,
-            id: Math.random().toString(36).substr(2, 9),
+            id: Math.random().toString(36).substr(2, 9), // ID generation for JSONB array item
+            userId: commentData.userId,
+            text: commentData.text,
             timestamp: new Date().toISOString()
         };
-        const updated = projects.map(p => {
-            if (p.id === projectId) {
-                return { ...p, comments: [...p.comments, newComment] };
-            }
-            return p;
-        });
-        saveProjects(updated);
+
+        const updatedComments = [...project.comments, newComment];
+
+        const { error } = await supabase
+            .from('projects')
+            .update({ comments: updatedComments })
+            .eq('id', projectId);
+
+        if (error) console.error('Error adding comment:', error);
+    };
+
+    const deleteProject = async (id: string) => {
+        const { error } = await supabase
+            .from('projects')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error deleting project:', error);
+            throw error;
+        }
     };
 
     const getProject = (id: string) => projects.find(p => p.id === id);
 
     return (
-        <ProjectContext.Provider value={{ projects, addProject, updateProjectStatus, updateChecklist, addComment, getProject }}>
+        <ProjectContext.Provider value={{
+            projects,
+            loading,
+            addProject,
+            updateProjectStatus,
+            updateChecklist,
+            addComment,
+            deleteProject,
+            getProject
+        }}>
             {children}
         </ProjectContext.Provider>
     );

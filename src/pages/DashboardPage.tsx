@@ -1,24 +1,49 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useProjects } from '../context/ProjectContext';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 import { StatCard } from '../components/dashboard/StatCard';
 import { WorkloadChart } from '../components/dashboard/WorkloadChart';
 import {
     CheckCircle,
     Clock,
     Activity,
-    Users
+    Users,
+    Trash2
 } from 'lucide-react';
 
-
-
 export const DashboardPage: React.FC = () => {
-    const { projects } = useProjects();
+    const { projects, deleteProject } = useProjects();
+    const { user } = useAuth();
+    const [totalInterns, setTotalInterns] = useState(0);
+
+    useEffect(() => {
+        const fetchInternsCount = async () => {
+            const { count, error } = await supabase
+                .from('profiles')
+                .select('*', { count: 'exact', head: true })
+                .eq('role', 'intern');
+
+            if (!error && count !== null) {
+                setTotalInterns(count);
+            }
+        };
+
+        fetchInternsCount();
+    }, []);
 
     const stats = {
         activeProjects: projects.filter(p => p.status !== 'done').length,
-        completedTasks: projects.filter(p => p.status === 'done').length, // Reusing 'completed' logic
+        completedTasks: projects.filter(p => p.status === 'done').length,
         upcomingDeadlines: projects.filter(p => p.status !== 'done' && new Date(p.deadline) > new Date()).length,
-        totalInterns: 15, // Placeholder
+        totalInterns: totalInterns,
+    };
+
+    const handleDelete = async (e: React.MouseEvent, id: string) => {
+        e.stopPropagation(); // Prevent navigation if clicking row triggers something
+        if (window.confirm('Sei sicuro di voler eliminare questo progetto?')) {
+            await deleteProject(id);
+        }
     };
 
     return (
@@ -73,19 +98,30 @@ export const DashboardPage: React.FC = () => {
                             .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
                             .slice(0, 5)
                             .map(project => (
-                                <div key={project.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                <div key={project.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100 group">
                                     <div>
                                         <h3 className="font-semibold text-slate-900">{project.title}</h3>
                                         <p className="text-sm text-slate-500">Scadenza: {new Date(project.deadline).toLocaleDateString()}</p>
                                     </div>
-                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${project.status === 'in-progress' ? 'bg-blue-100 text-blue-700' :
-                                        project.status === 'review' ? 'bg-purple-100 text-purple-700' :
-                                            'bg-slate-100 text-slate-700'
-                                        }`}>
-                                        {project.status === 'in-progress' ? 'In Corso' :
-                                            project.status === 'review' ? 'In Revisione' :
-                                                project.status === 'todo' ? 'Da Fare' : 'Completato'}
-                                    </span>
+                                    <div className="flex items-center gap-3">
+                                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${project.status === 'in-progress' ? 'bg-blue-100 text-blue-700' :
+                                            project.status === 'review' ? 'bg-purple-100 text-purple-700' :
+                                                'bg-slate-100 text-slate-700'
+                                            }`}>
+                                            {project.status === 'in-progress' ? 'In Corso' :
+                                                project.status === 'review' ? 'In Revisione' :
+                                                    project.status === 'todo' ? 'Da Fare' : 'Completato'}
+                                        </span>
+                                        {user?.role === 'supervisor' && (
+                                            <button
+                                                onClick={(e) => handleDelete(e, project.id)}
+                                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                                title="Elimina Progetto"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             ))}
                         {projects.filter(p => new Date(p.deadline) > new Date()).length === 0 && (

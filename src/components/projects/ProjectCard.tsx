@@ -1,15 +1,17 @@
 import React from 'react';
-import type { Project } from '../../types';
-import { CheckSquare, Clock, AlertCircle } from 'lucide-react';
+import type { Project, Role } from '../../types';
+import { CheckSquare, Clock, AlertCircle, Trash2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion } from 'framer-motion';
 
 interface ProjectCardProps {
     project: Project;
     onClick: (project: Project) => void;
+    onDelete?: (e: React.MouseEvent) => void;
+    currentUserRole?: Role;
 }
 
-export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onClick }) => {
+export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onClick, onDelete, currentUserRole }) => {
     const completedTasks = project.checklist.filter(i => i.completed).length;
     const totalTasks = project.checklist.length;
     const progress = totalTasks === 0 ? 0 : (completedTasks / totalTasks) * 100;
@@ -39,12 +41,23 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onClick }) =>
         >
             {/* Status Badge */}
             <div className="flex justify-between items-start mb-4">
-                <span className={cn(
-                    "px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wide",
-                    statusColors[project.status]
-                )}>
-                    {statusLabels[project.status]}
-                </span>
+                <div className="flex items-center gap-2">
+                    <span className={cn(
+                        "px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wide",
+                        statusColors[project.status]
+                    )}>
+                        {statusLabels[project.status]}
+                    </span>
+                    {currentUserRole === 'supervisor' && onDelete && (
+                        <button
+                            onClick={onDelete}
+                            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Elimina Progetto"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                    )}
+                </div>
                 {isOverdue && (
                     <div className="flex items-center gap-1 text-red-500 bg-red-50 px-2 py-1 rounded-lg border border-red-100">
                         <AlertCircle className="w-3 h-3" />
