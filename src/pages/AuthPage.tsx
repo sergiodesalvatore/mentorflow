@@ -276,15 +276,18 @@ export const AuthPage: React.FC = () => {
 
                             {!isLogin && role === 'intern' && (
                                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Anno di Corso</label>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Anno di Corso / Stato</label>
                                     <select
                                         value={courseYear}
                                         onChange={(e) => setCourseYear(e.target.value)}
                                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
                                     >
-                                        {['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year'].map(year => (
-                                            <option key={year} value={year}>{year}</option>
-                                        ))}
+                                        <option value="1° Anno">1° Anno Specializzazione</option>
+                                        <option value="2° Anno">2° Anno Specializzazione</option>
+                                        <option value="3° Anno">3° Anno Specializzazione</option>
+                                        <option value="4° Anno">4° Anno Specializzazione</option>
+                                        <option value="5° Anno">5° Anno Specializzazione</option>
+                                        <option value="Specialista">Già Specialista</option>
                                     </select>
                                 </motion.div>
                             )}
