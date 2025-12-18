@@ -47,7 +47,6 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
             createdById: user.id,
             status: 'todo',
             deadline: new Date(deadline).toISOString(),
-            checklist: checklistItems,
         });
 
         // Reset form

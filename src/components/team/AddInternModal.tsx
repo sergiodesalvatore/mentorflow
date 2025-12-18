@@ -13,7 +13,7 @@ export const AddInternModal: React.FC<AddInternModalProps> = ({ isOpen, onClose,
         firstName: '',
         lastName: '',
         email: '',
-        role: 'intern' as const,
+        role: 'intern' as 'intern' | 'supervisor',
         courseYear: ''
     });
 
