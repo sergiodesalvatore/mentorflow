@@ -10,6 +10,7 @@ interface ProjectContextType {
     updateProjectStatus: (id: string, status: ProjectStatus) => Promise<void>;
     updateChecklist: (projectId: string, checklist: ChecklistItem[]) => Promise<void>;
     addComment: (projectId: string, comment: Omit<Comment, 'id' | 'timestamp'>) => Promise<void>;
+    updateProject: (id: string, project: Partial<Project>) => Promise<void>;
     deleteProject: (id: string) => Promise<void>;
     getProject: (id: string) => Project | undefined;
 }
@@ -135,6 +136,24 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (error) console.error('Error adding comment:', error);
     };
 
+    const updateProject = async (id: string, projectData: Partial<Project>) => {
+        const { error } = await supabase
+            .from('projects')
+            .update({
+                title: projectData.title,
+                description: projectData.description,
+                assigned_to_id: projectData.assignedToId,
+                status: projectData.status,
+                deadline: projectData.deadline
+            })
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error updating project:', error);
+            throw error;
+        }
+    };
+
     const deleteProject = async (id: string) => {
         const { error } = await supabase
             .from('projects')
@@ -157,6 +176,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
             updateProjectStatus,
             updateChecklist,
             addComment,
+            updateProject,
             deleteProject,
             getProject
         }}>
