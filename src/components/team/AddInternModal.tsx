@@ -30,9 +30,11 @@ export const AddInternModal: React.FC<AddInternModalProps> = ({ isOpen, onClose,
                 courseYear: formData.courseYear
             });
             onClose();
+            // Show credentials to the Mentor
+            alert(`Utente creato con successo!\n\nEmail: ${formData.email}\nPassword Provvisoria: TemporaryPassword123!\n\nComunicare queste credenziali all'utente. Potrà cambiare la password dopo il primo accesso.`);
         } catch (error) {
             console.error(error);
-            alert('Errore durante l\'aggiunta dell\'utente. Controlla console.');
+            alert('Errore durante l\'aggiunta dell\'utente. Potresti aver superato il limite di email o l\'utente esiste già.');
         } finally {
             setLoading(false);
         }
