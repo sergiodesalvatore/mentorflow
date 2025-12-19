@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import type { Role } from '../types';
-import { Stethoscope, User as UserIcon, ArrowRight, Mail, Lock } from 'lucide-react';
+import { Stethoscope, User as UserIcon, ArrowRight, Lock, UserCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -10,7 +9,6 @@ export const AuthPage: React.FC = () => {
     const { signIn, signUp, isAuthenticated } = useAuth() as any;
     const navigate = useNavigate();
     const [isLogin, setIsLogin] = useState(true);
-    const [role, setRole] = useState<Role>('intern');
 
     useEffect(() => {
         if (isAuthenticated) {
@@ -20,12 +18,11 @@ export const AuthPage: React.FC = () => {
 
     // Form states
     const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState(''); // Added password state
-    const [specialty, setSpecialty] = useState('');
-    const [courseYear, setCourseYear] = useState('1st Year');
+    const [username, setUsername] = useState(''); // Changed from email
+    const [password, setPassword] = useState('');
+    const [status, setStatus] = useState('1° Anno Specializzazione'); // Unified status
     const [avatar, setAvatar] = useState<string>('');
-    const [isLoading, setIsLoading] = useState(false); // Added loading state
+    const [isLoading, setIsLoading] = useState(false);
 
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -43,7 +40,7 @@ export const AuthPage: React.FC = () => {
     // Clear error when switching modes
     useEffect(() => {
         setError(null);
-    }, [isLogin, role]);
+    }, [isLogin]);
 
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -53,26 +50,29 @@ export const AuthPage: React.FC = () => {
         setSuccessMessage(null);
         setIsLoading(true);
 
+        const email = `${username.toLowerCase().replace(/\s+/g, '')}@mentorflow.local`;
+
         try {
             if (isLogin) {
                 const { error } = await signIn(email, password);
                 if (error) {
-                    setError('Credenziali non valide. Controlla email e password.');
+                    setError('Credenziali non valide. Controlla nome utente e password.');
                 }
             } else {
                 const { error } = await signUp(email, password, {
                     name,
-                    role,
+                    role: 'supervisor', // Default everyone to supervisor to enable all features
                     avatar,
-                    specialty: role === 'supervisor' ? specialty : undefined,
-                    courseYear: role === 'intern' ? courseYear : undefined,
+                    specialty: status === 'Specialista' ? 'Specialista' : undefined,
+                    courseYear: status !== 'Specialista' ? status : undefined,
+                    status: status // Save explicitly
                 });
 
                 if (error) {
                     setError(error.message || 'Errore durante la registrazione.');
                 } else {
-                    setSuccessMessage('Registrazione avvenuta con successo! Controlla la tua email per confermare il tuo account prima di accedere.');
-                    setIsLogin(true); // Switch to login view
+                    setSuccessMessage('Account creato! Accesso in corso...');
+                    await signIn(email, password);
                 }
             }
         } catch (err: any) {
@@ -102,10 +102,10 @@ export const AuthPage: React.FC = () => {
                             <Stethoscope className="w-8 h-8 text-white" />
                         </div>
                         <h1 className="text-5xl font-bold mb-6 leading-tight">
-                            Potenzia la Prossima Generazione di <span className="text-indigo-200">Professionisti Medici</span>
+                            La Tua Piattaforma <span className="text-indigo-200">Clinica</span>
                         </h1>
                         <p className="text-lg text-indigo-100 max-w-md leading-relaxed">
-                            Semplifica la supervisione, traccia i progressi e favorisci la crescita con la piattaforma di gestione intelligente MentorFlow.
+                            Gestisci la tua formazione e le attività cliniche in un unico posto.
                         </p>
                     </motion.div>
                 </div>
@@ -188,16 +188,18 @@ export const AuthPage: React.FC = () => {
                             )}
 
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1.5">Indirizzo Email</label>
+                                <label className="block text-sm font-medium text-slate-700 mb-1.5">Nome Utente</label>
                                 <div className="relative">
-                                    <Mail className="absolute left-3.5 top-3.5 w-5 h-5 text-slate-400" />
+                                    <UserCircle className="absolute left-3.5 top-3.5 w-5 h-5 text-slate-400" />
                                     <input
-                                        type="email"
+                                        type="text"
                                         required
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
+                                        value={username}
+                                        onChange={(e) => setUsername(e.target.value)}
                                         className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-                                        placeholder="nome@ospedale.com"
+                                        placeholder="mariorossi"
+                                        autoCapitalize="none"
+                                        autoCorrect="off"
                                     />
                                 </div>
                             </div>
@@ -218,75 +220,19 @@ export const AuthPage: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Roles Selection - Only on Register */}
                             {!isLogin && (
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Ruolo</label>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <label className={`relative border-2 rounded-xl p-4 cursor-pointer transition-all duration-200 ${role === 'supervisor'
-                                            ? 'border-indigo-600 bg-indigo-50/50'
-                                            : 'border-slate-100 hover:border-slate-200'
-                                            }`}>
-                                            <input
-                                                type="radio"
-                                                name="role"
-                                                value="supervisor"
-                                                checked={role === 'supervisor'}
-                                                onChange={() => setRole('supervisor')}
-                                                className="hidden"
-                                            />
-                                            <div className="text-center">
-                                                <span className={`block font-semibold ${role === 'supervisor' ? 'text-indigo-700' : 'text-slate-600'}`}>Mentor</span>
-                                            </div>
-                                        </label>
-                                        <label className={`relative border-2 rounded-xl p-4 cursor-pointer transition-all duration-200 ${role === 'intern'
-                                            ? 'border-indigo-600 bg-indigo-50/50'
-                                            : 'border-slate-100 hover:border-slate-200'
-                                            }`}>
-                                            <input
-                                                type="radio"
-                                                name="role"
-                                                value="intern"
-                                                checked={role === 'intern'}
-                                                onChange={() => setRole('intern')}
-                                                className="hidden"
-                                            />
-                                            <div className="text-center">
-                                                <span className={`block font-semibold ${role === 'intern' ? 'text-indigo-700' : 'text-slate-600'}`}>Mentee</span>
-                                            </div>
-                                        </label>
-                                    </div>
-                                </div>
-                            )}
-
-
-                            {!isLogin && role === 'supervisor' && (
                                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Specializzazione</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={specialty}
-                                        onChange={(e) => setSpecialty(e.target.value)}
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-                                        placeholder="es. Cardiologia"
-                                    />
-                                </motion.div>
-                            )}
-
-                            {!isLogin && role === 'intern' && (
-                                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Anno di Corso / Stato</label>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Qualifica / Anno</label>
                                     <select
-                                        value={courseYear}
-                                        onChange={(e) => setCourseYear(e.target.value)}
+                                        value={status}
+                                        onChange={(e) => setStatus(e.target.value)}
                                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
                                     >
-                                        <option value="1° Anno">1° Anno Specializzazione</option>
-                                        <option value="2° Anno">2° Anno Specializzazione</option>
-                                        <option value="3° Anno">3° Anno Specializzazione</option>
-                                        <option value="4° Anno">4° Anno Specializzazione</option>
-                                        <option value="5° Anno">5° Anno Specializzazione</option>
+                                        <option value="1° Anno Specializzazione">1° Anno Specializzazione</option>
+                                        <option value="2° Anno Specializzazione">2° Anno Specializzazione</option>
+                                        <option value="3° Anno Specializzazione">3° Anno Specializzazione</option>
+                                        <option value="4° Anno Specializzazione">4° Anno Specializzazione</option>
+                                        <option value="5° Anno Specializzazione">5° Anno Specializzazione</option>
                                         <option value="Specialista">Già Specialista</option>
                                     </select>
                                 </motion.div>
@@ -294,7 +240,7 @@ export const AuthPage: React.FC = () => {
 
                             {!isLogin && (
                                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Foto Profilo</label>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Foto Profilo (Opzionale)</label>
                                     <div className="flex items-center gap-4">
                                         <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border-2 border-slate-200">
                                             {avatar ? (

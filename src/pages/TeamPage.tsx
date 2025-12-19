@@ -6,52 +6,40 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import type { User } from '../types';
 import { Plus, Users } from 'lucide-react';
-import { createClient } from '@supabase/supabase-js';
+import { User, Mail, GraduationCap } from 'lucide-react';
+import { motion } from 'framer-motion';
 
-// Separate client for "Invites" to avoid logging out the current user
-// We use the same public credentials
-const inviteClient = createClient(
-    import.meta.env.VITE_SUPABASE_URL || 'https://oreumuycaizvlxoudhrg.supabase.co',
-    import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9yZXVtdXljYWl6dmx4b3VkaHJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYwMTAxMTUsImV4cCI6MjA4MTU4NjExNX0.SdMUYou9PIOFMgtVTuE-HhvT3GcrUtaxtVLC79-M_9c',
-    {
-        auth: {
-            persistSession: false, // Don't persist this session
-            autoRefreshToken: false,
-            detectSessionInUrl: false
-        }
-    }
-);
+// Using a slightly more flexible User type for display
+interface TeamMember {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    avatar: string;
+    specialty?: string;
+    course_year?: string;
+    status?: string; // New field
+}
 
 export const TeamPage: React.FC = () => {
-    const { projects } = useProjects();
-    const { user } = useAuth();
-    const [interns, setInterns] = useState<User[]>([]);
+    const [team, setTeam] = useState<TeamMember[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-    const fetchInterns = async () => {
+    useEffect(() => {
+        fetchTeam();
+    }, []);
+
+    const fetchTeam = async () => {
         try {
             const { data, error } = await supabase
                 .from('profiles')
                 .select('*')
-                .eq('role', 'intern');
+                .order('name');
 
             if (error) throw error;
-
-            if (data) {
-                const mappedInterns: User[] = data.map(p => ({
-                    id: p.id,
-                    name: p.name,
-                    email: p.email,
-                    role: 'intern',
-                    avatar: p.avatar,
-                    specialty: p.specialty,
-                    courseYear: p.course_year
-                }));
-                setInterns(mappedInterns);
-            }
+            if (data) setTeam(data);
         } catch (error) {
-            console.error('Error fetching interns:', error);
+            console.error('Error fetching team:', error);
         } finally {
             setLoading(false);
         }

@@ -25,16 +25,22 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
     const [loadingMentees, setLoadingMentees] = useState(false);
     const [submitting, setSubmitting] = useState(false);
 
+    const [fetchError, setFetchError] = useState<string | null>(null);
+
     useEffect(() => {
         if (isOpen) {
             const fetchMentees = async () => {
                 setLoadingMentees(true);
-                const { data } = await supabase
+                setFetchError(null);
+                const { data, error } = await supabase
                     .from('profiles')
                     .select('*')
                     .eq('role', 'intern');
 
-                if (data) {
+                if (error) {
+                    console.error("Error fetching mentees:", error);
+                    setFetchError("Errore nel caricamento dei Mentee: " + error.message);
+                } else if (data) {
                     const mapped: User[] = data.map(p => ({
                         id: p.id,
                         name: p.name,
@@ -44,6 +50,9 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
                         courseYear: p.course_year
                     }));
                     setMentees(mapped);
+                    if (data.length === 0) {
+                        setFetchError("Nessun Mentee trovato nel database.");
+                    }
                 }
                 setLoadingMentees(false);
             };
@@ -149,6 +158,10 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
                                     <option value="">Seleziona Mentee</option>
                                     {loadingMentees ? (
                                         <option disabled>Caricamento...</option>
+                                    ) : fetchError ? (
+                                        <option disabled>{fetchError}</option>
+                                    ) : mentees.length === 0 ? (
+                                        <option disabled>Nessun Mentee disponibile</option>
                                     ) : (
                                         mentees.map(mentee => (
                                             <option key={mentee.id} value={mentee.id}>
@@ -157,6 +170,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
                                         ))
                                     )}
                                 </select>
+                                {fetchError && <p className="text-xs text-red-500 mt-1">{fetchError}</p>}
                             </div>
                         </div>
 
