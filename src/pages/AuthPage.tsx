@@ -50,7 +50,7 @@ export const AuthPage: React.FC = () => {
         setSuccessMessage(null);
         setIsLoading(true);
 
-        const email = `${username.toLowerCase().replace(/\s+/g, '')}@mentorflow.local`;
+        const email = `${username.toLowerCase().replace(/\s+/g, '')}@mentorflow.app`;
 
         try {
             if (isLogin) {
