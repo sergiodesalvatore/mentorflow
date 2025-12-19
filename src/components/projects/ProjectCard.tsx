@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Project, Role } from '../../types';
-import { CheckSquare, Clock, AlertCircle, Trash2 } from 'lucide-react';
+import { CheckSquare, Clock, AlertCircle, Trash2, Pencil } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion } from 'framer-motion';
 
@@ -8,10 +8,11 @@ interface ProjectCardProps {
     project: Project;
     onClick: (project: Project) => void;
     onDelete?: (e: React.MouseEvent) => void;
+    onEdit?: (e: React.MouseEvent) => void;
     currentUserRole?: Role;
 }
 
-export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onClick, onDelete, currentUserRole }) => {
+export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onClick, onDelete, onEdit, currentUserRole }) => {
     const completedTasks = project.checklist.filter(i => i.completed).length;
     const totalTasks = project.checklist.length;
     const progress = totalTasks === 0 ? 0 : (completedTasks / totalTasks) * 100;
@@ -48,14 +49,27 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onClick, onDe
                     )}>
                         {statusLabels[project.status]}
                     </span>
-                    {currentUserRole === 'supervisor' && onDelete && (
-                        <button
-                            onClick={onDelete}
-                            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Elimina Progetto"
-                        >
-                            <Trash2 className="w-4 h-4" />
-                        </button>
+                    {currentUserRole === 'supervisor' && (
+                        <div className="flex items-center gap-1">
+                            {onEdit && (
+                                <button
+                                    onClick={onEdit}
+                                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                    title="Modifica Progetto"
+                                >
+                                    <Pencil className="w-4 h-4" />
+                                </button>
+                            )}
+                            {onDelete && (
+                                <button
+                                    onClick={onDelete}
+                                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                    title="Elimina Progetto"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
                     )}
                 </div>
                 {isOverdue && (
