@@ -1,12 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { InternCard } from '../components/team/InternCard';
-import { AddInternModal } from '../components/team/AddInternModal';
-import { useProjects } from '../context/ProjectContext';
-import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import type { User } from '../types';
-import { Plus, Users } from 'lucide-react';
-import { User, Mail, GraduationCap } from 'lucide-react';
+import { User, GraduationCap } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 // Using a slightly more flexible User type for display
@@ -18,7 +12,7 @@ interface TeamMember {
     avatar: string;
     specialty?: string;
     course_year?: string;
-    status?: string; // New field
+    status?: string;
 }
 
 export const TeamPage: React.FC = () => {
@@ -27,6 +21,18 @@ export const TeamPage: React.FC = () => {
 
     useEffect(() => {
         fetchTeam();
+
+        // Subscribe to changes
+        const channel = supabase
+            .channel('public:profiles')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+                fetchTeam();
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, []);
 
     const fetchTeam = async () => {
@@ -45,109 +51,62 @@ export const TeamPage: React.FC = () => {
         }
     };
 
-    useEffect(() => {
-        fetchInterns();
-
-        // Subscribe to changes in profiles
-        const channel = supabase
-            .channel('public:profiles')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
-                fetchInterns();
-            })
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, []);
-
-    const handleAddMember = async (data: { name: string; email: string; role: 'intern' | 'supervisor'; courseYear?: string; password?: string }) => {
-        // Use the isolated client to sign up the new user
-        // This triggers the handle_new_user trigger in Postgres to create the profile
-        const { error } = await inviteClient.auth.signUp({
-            email: data.email,
-            password: data.password || 'TemporaryPassword123!', // Use provided password or fallback (though UI requires it now)
-            options: {
-                data: {
-                    name: data.name,
-                    role: data.role,
-                    courseYear: data.courseYear,
-                    // Default avatar
-                    avatar: `https://ui-avatars.com/api/?name=${data.name}&background=random`
-                }
-            }
-        });
-
-        if (error) throw error;
-
-        // Refresh list
-        await fetchInterns();
-    };
-
-    const handleDeleteMember = async (id: string) => {
-        // Soft delete from profiles only (Auth user remains but hidden from app)
-        const { error } = await supabase
-            .from('profiles')
-            .delete()
-            .eq('id', id);
-
-        if (error) {
-            console.error('Error deleting member:', error);
-            alert('Errore eliminazione. Assicurati di avere i permessi.');
-        } else {
-            setInterns(interns.filter(i => i.id !== id));
-        }
-    };
-
-    const isMentor = user?.role === 'supervisor';
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-96">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-8">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Il Tuo Team</h1>
-                    <p className="text-slate-500 mt-1">Gestisci e monitora i progressi dei tuoi Mentee</p>
+                    <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Il Team</h1>
+                    <p className="text-slate-500 mt-1">Tutti i membri della piattaforma</p>
                 </div>
-                {isMentor && (
-                    <button
-                        onClick={() => setIsAddModalOpen(true)}
-                        className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/30 flex items-center gap-2 active:scale-95 transform duration-200"
-                    >
-                        <Plus className="w-5 h-5" />
-                        Aggiungi Membro
-                    </button>
-                )}
             </div>
 
-            {loading ? (
-                <div className="text-center py-12">
-                    <p className="text-slate-500 animate-pulse">Caricamento team...</p>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {interns.map((intern) => (
-                        <InternCard
-                            key={intern.id}
-                            intern={intern}
-                            projects={projects}
-                            onDelete={handleDeleteMember}
-                        />
-                    ))}
-                    {interns.length === 0 && (
-                        <div className="col-span-full text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                            <Users className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                            <p className="text-slate-500 text-lg">Nessun mentee trovato.</p>
-                            {isMentor && <p className="text-sm text-slate-400 mt-2">Usa il tasto "Aggiungi Membro" per iniziare.</p>}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {team.map((member) => (
+                    <motion.div
+                        key={member.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center text-center hover:shadow-md transition-all group"
+                    >
+                        <div className="relative mb-4">
+                            <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-slate-50 shadow-inner group-hover:scale-105 transition-transform">
+                                <img
+                                    src={member.avatar || `https://ui-avatars.com/api/?name=${member.name}&background=random`}
+                                    alt={member.name}
+                                    className="w-full h-full object-cover"
+                                />
+                            </div>
+                            <div className={`absolute bottom-0 right-0 w-8 h-8 rounded-full border-4 border-white flex items-center justify-center bg-indigo-500`}>
+                                <User className="w-4 h-4 text-white" />
+                            </div>
                         </div>
-                    )}
-                </div>
-            )}
 
-            <AddInternModal
-                isOpen={isAddModalOpen}
-                onClose={() => setIsAddModalOpen(false)}
-                onAdd={handleAddMember}
-            />
+                        <h3 className="text-lg font-bold text-slate-900 mb-1">{member.name}</h3>
+
+                        {/* Display Username (email without domain) */}
+                        <p className="text-sm text-slate-400 font-medium mb-3">
+                            @{member.email?.split('@')[0]}
+                        </p>
+
+                        <div className="flex flex-col gap-2 w-full mt-2">
+                            {(member.status || member.course_year || member.specialty) && (
+                                <div className="bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-2">
+                                    <GraduationCap className="w-4 h-4" />
+                                    {member.status || member.course_year || member.specialty}
+                                </div>
+                            )}
+                        </div>
+                    </motion.div>
+                ))}
+            </div>
         </div>
     );
 };

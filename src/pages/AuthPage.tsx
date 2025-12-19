@@ -127,7 +127,7 @@ export const AuthPage: React.FC = () => {
                             className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 ${isLogin ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                                 }`}
                         >
-                            Accedi
+                            Login
                         </button>
                         <button
                             onClick={() => setIsLogin(false)}
