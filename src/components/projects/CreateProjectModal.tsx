@@ -3,15 +3,16 @@ import { X, Users, Calendar, Loader2 } from 'lucide-react';
 import { useProjects } from '../../context/ProjectContext';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
-import type { ChecklistItem, User } from '../../types';
+import type { ChecklistItem, User, Project } from '../../types';
 
 interface CreateProjectModalProps {
     isOpen: boolean;
     onClose: () => void;
+    projectToEdit?: Project | null;
 }
 
-export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, onClose }) => {
-    const { addProject } = useProjects();
+export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, onClose, projectToEdit }) => {
+    const { addProject, updateProject } = useProjects();
     const { user } = useAuth();
 
     const [title, setTitle] = useState('');
@@ -28,6 +29,24 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
     const [fetchError, setFetchError] = useState<string | null>(null);
 
     useEffect(() => {
+        if (isOpen && projectToEdit) {
+            setTitle(projectToEdit.title);
+            setDescription(projectToEdit.description);
+            // Format date for input type="date"
+            setDeadline(new Date(projectToEdit.deadline).toISOString().split('T')[0]);
+            setAssignedToId(projectToEdit.assignedToId || '');
+            setChecklistItems(projectToEdit.checklist || []);
+        } else if (isOpen && !projectToEdit) {
+            // Reset for create mode
+            setTitle('');
+            setDescription('');
+            setDeadline('');
+            setAssignedToId('');
+            setChecklistItems([]);
+        }
+    }, [isOpen, projectToEdit]);
+
+    useEffect(() => {
         if (isOpen) {
             const fetchMentees = async () => {
                 setLoadingMentees(true);
@@ -36,6 +55,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
                     .from('profiles')
                     .select('*')
                     .eq('role', 'intern');
+                // ... rest of fetchMentees
 
                 if (error) {
                     console.error("Error fetching mentees:", error);
@@ -85,14 +105,25 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
 
         setSubmitting(true);
         try {
-            await addProject({
-                title,
-                description,
-                assignedToId,
-                createdById: user.id,
-                status: 'todo',
-                deadline: new Date(deadline).toISOString(),
-            });
+            if (projectToEdit) {
+                await updateProject(projectToEdit.id, {
+                    title,
+                    description,
+                    assignedToId: assignedToId,
+                    status: projectToEdit.status, // Keep existing status or allow change? Keeping for now.
+                    deadline: new Date(deadline).toISOString(),
+                    checklist: checklistItems
+                });
+            } else {
+                await addProject({
+                    title,
+                    description,
+                    assignedToId,
+                    createdById: user.id,
+                    status: 'todo',
+                    deadline: new Date(deadline).toISOString(),
+                });
+            }
 
             // Reset form
             setTitle('');
